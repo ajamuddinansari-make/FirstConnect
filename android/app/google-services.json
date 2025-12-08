@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "747888294826",
+    "project_id": "firstconnect-2b570",
+    "storage_bucket": "firstconnect-2b570.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:747888294826:android:0a6ebe99d9c61d7f4a09d3",
+        "android_client_info": {
+          "package_name": "com.firstconnect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzBntl-lIXr-JURD84o5hOnjVti8lJ59U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
