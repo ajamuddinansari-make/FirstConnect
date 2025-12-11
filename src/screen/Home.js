@@ -147,7 +147,8 @@ const Home = () => {
 
       <WebView
         ref={webViewRef}
-        source={{ uri: 'https://reactnative.dev' }}
+        mixedContentMode="always"
+        source={{ uri: 'https://firstconnectuser.cognigixdemo.com' }}
         style={{ flex: 1 }}
         injectedJavaScript={disableLongPressJS}
         javaScriptEnabled={true}
@@ -165,13 +166,14 @@ export default Home;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    marginTop: 40,
+    marginTop: 1,
   },
   progressBar: {
     height: 3,
     backgroundColor: '#2196F3',
   },
 });
+
 
 
 
