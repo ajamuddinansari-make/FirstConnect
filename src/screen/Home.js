@@ -14,6 +14,7 @@ import { PermissionsAndroid } from 'react-native';
 
 
 import messaging from '@react-native-firebase/messaging';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 
@@ -28,10 +29,11 @@ const Home = () => {
 
 
 
-  useEffect(() => {
-    requestPermissionAndroid()
-  }, []);
+  // useEffect(() => {
+  //   requestPermissionAndroid()
+  // }, []);
 
+  console.log("first...")
 
 
 
@@ -42,7 +44,7 @@ const Home = () => {
 
     if (granted === PermissionsAndroid.RESULTS.GRANTED) {
       // Alert.alert("Permission Granted");
-      getToken();
+      // getToken();
     } else {
       // Alert.alert("Permission Denied");
     }
@@ -51,19 +53,19 @@ const Home = () => {
 
 
 
-  useEffect(() => {
-    const unsubscribe = messaging().onMessage(async remoteMessage => {
-      Alert.alert('A new FCM message arrived!', JSON.stringify(remoteMessage));
-    });
+  // useEffect(() => {
+  //   const unsubscribe = messaging().onMessage(async remoteMessage => {
+  //     Alert.alert('A new FCM message arrived!', JSON.stringify(remoteMessage));
+  //   });
 
-    return unsubscribe;
-  }, []);
+  //   return unsubscribe;
+  // }, []);
 
 
-  const getToken = async () => {
-    const token = await messaging().getToken();
-    console.log("Token----------", token)
-  }
+  // const getToken = async () => {
+  //   const token = await messaging().getToken();
+  //   console.log("Token----------", token)
+  // }
 
   const handleBackPress = useCallback(() => {
     if (canGoBack) {
@@ -129,7 +131,7 @@ const Home = () => {
   `;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
 
       {isLoading && (
         <Animated.View
@@ -147,17 +149,28 @@ const Home = () => {
 
       <WebView
         ref={webViewRef}
-        mixedContentMode="always"
+        // mixedContentMode="always"
         source={{ uri: 'https://firstconnectuser.cognigixdemo.com' }}
+
+        // source={{ uri: 'https://firstconnectuser.cognigixdemo.com/user/home' }}
+
+        // source={{ uri: 'https://testlearner.viliyo.com' }}
         style={{ flex: 1 }}
-        injectedJavaScript={disableLongPressJS}
+        injectedJavaScriptBeforeContentLoaded={disableLongPressJS}
+
         javaScriptEnabled={true}
         onLoadProgress={onLoadProgress}
         onNavigationStateChange={(navState) =>
           setCanGoBack(navState.canGoBack)
         }
+
+      // allowingReadAccessToURL={true}
+      // allowsInlineMediaPlayback={true}
+      // mediaPlaybackRequiresUserAction={false}
+      // originWhitelist={['*']}
+      // startInLoadingState={true}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -173,6 +186,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#2196F3',
   },
 });
+
+
+
+
 
 
 
