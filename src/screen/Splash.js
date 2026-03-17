@@ -11,10 +11,12 @@ const Splash = ({ navigation }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       navigation.replace('Home')
-    }, 3000) // 3 seconds
+    }, 3000) 
 
     return () => clearTimeout(timer)
   }, [navigation])
+
+  
 
   return (
     <SafeAreaView>
@@ -46,3 +48,5 @@ const styles = StyleSheet.create({
 })
 
 export default Splash
+
+

@@ -1,13 +1,32 @@
 {
   "project_info": {
-    "project_number": "747888294826",
-    "project_id": "firstconnect-2b570",
-    "storage_bucket": "firstconnect-2b570.firebasestorage.app"
+    "project_number": "896979938629",
+    "project_id": "firstsolar-5e3f2",
+    "storage_bucket": "firstsolar-5e3f2.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:747888294826:android:0a6ebe99d9c61d7f4a09d3",
+        "mobilesdk_app_id": "1:896979938629:android:7bc2867d365a2f4f12a22c",
+        "android_client_info": {
+          "package_name": "com.firstConnect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBjZynn9Z6UfNq8UObDaoVeGz3h9-lQMi8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:896979938629:android:a8fee11c6366e54812a22c",
         "android_client_info": {
           "package_name": "com.firstconnect"
         }
@@ -15,7 +34,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBzBntl-lIXr-JURD84o5hOnjVti8lJ59U"
+          "current_key": "AIzaSyBjZynn9Z6UfNq8UObDaoVeGz3h9-lQMi8"
         }
       ],
       "services": {
