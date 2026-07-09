@@ -23,6 +23,7 @@ const Home = () => {
   const [fcmToken, setFcmToken] = useState(null);
   const [isTokenSent, setIsTokenSent] = useState(false);
   const progress = useRef(new Animated.Value(0)).current;
+   const hasRefreshed = useRef(false);
 
   
   useEffect(() => {
@@ -157,7 +158,26 @@ const Home = () => {
   `;
 
   const handleNavigationChange = navState => {
+    console.log("Web View Url",navState.url)
+    
     setCanGoBack(navState.canGoBack);
+
+     if (navState.url.includes('/pre-login') && !hasRefreshed.current) {
+      hasRefreshed.current = true;
+
+      console.log(' One-time refresh triggered');
+
+      setUserId(null);
+      setIsTokenSent(false);
+
+      webViewRef.current?.reload();
+
+      setTimeout(() => {
+        hasRefreshed.current = false;
+      }, 3000);
+    }
+
+
     if (navState.url.includes('/user/home')) {
       setTimeout(() => {
         webViewRef.current?.injectJavaScript(`
