@@ -11,7 +11,10 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import messaging from '@react-native-firebase/messaging';
-import notifee, { AndroidImportance } from '@notifee/react-native';
+import notifee, { 
+  AndroidImportance,
+  EventType
+} from '@notifee/react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const Home = () => {
@@ -23,19 +26,28 @@ const Home = () => {
   const [fcmToken, setFcmToken] = useState(null);
   const [isTokenSent, setIsTokenSent] = useState(false);
   const progress = useRef(new Animated.Value(0)).current;
-   const hasRefreshed = useRef(false);
+  const hasRefreshed = useRef(false);
+  const [initialUrl, setInitialUrl] = useState(
+    'https://firstconnectuser.cognigix.com',
+  );
+  const isInitialLoad = useRef(true);
+  const openedFromNotification = useRef(false);
 
-  
+  const HOME_URL = 'https://firstconnectuser.cognigix.com/user/home';
+
   useEffect(() => {
     async function initNotifications() {
       if (Platform.OS === 'android' && Platform.Version >= 33) {
         await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
         );
       }
 
       await createNotificationChannel();
       await getFCMToken();
+
+      // Check for initial notification when app starts
+      checkInitialNotification();
     }
 
     initNotifications();
@@ -59,6 +71,29 @@ const Home = () => {
     });
   };
 
+  const checkInitialNotification = async () => {
+    try {
+      const remoteMessage = await messaging().getInitialNotification();
+      if (remoteMessage) {
+        console.log('App opened from killed state notification');
+        handleNotificationUrl(remoteMessage);
+      }
+    } catch (error) {
+      console.log('Error checking initial notification:', error);
+    }
+  };
+
+  const handleNotificationUrl = remoteMessage => {
+    const contentLink = remoteMessage?.data?.contentLink;
+    if (contentLink) {
+      const fullUrl = `https://firstconnectuser.cognigix.com${contentLink}`;
+      openedFromNotification.current = true;
+
+      console.log('Setting initial URL to:', fullUrl);
+
+      setInitialUrl(fullUrl);
+    }
+  };
 
   useEffect(() => {
     if (userId && fcmToken && !isTokenSent) {
@@ -76,7 +111,7 @@ const Home = () => {
           body: JSON.stringify({
             appData: { USER_ID: userId, FCM_TOKEN: token },
           }),
-        }
+        },
       );
       const data = await response.json();
       console.log('FCM token sent to backend:', data);
@@ -87,14 +122,25 @@ const Home = () => {
     }
   };
 
-
   useEffect(() => {
     const unsubscribe = messaging().onMessage(async remoteMessage => {
       try {
         await notifee.displayNotification({
           title: remoteMessage.notification?.title || 'New Notification',
+
           body: remoteMessage.notification?.body || '',
-          android: { channelId: 'default', smallIcon: 'ic_launcher' },
+
+          data: {
+            contentLink: remoteMessage.data?.contentLink,
+          },
+
+          android: {
+            channelId: 'default',
+            smallIcon: 'ic_launcher',
+            pressAction: {
+              id: 'default',
+            },
+          },
         });
       } catch (error) {
         console.log('Foreground notification error:', error);
@@ -103,40 +149,111 @@ const Home = () => {
     return unsubscribe;
   }, []);
 
-
   useEffect(() => {
-    messaging().onNotificationOpenedApp(remoteMessage => {
-      const url = remoteMessage.data?.url;
-      if (url) webViewRef.current?.injectJavaScript(`window.location.href = "${url}";`);
+    const handleNotification = remoteMessage => {
+      console.log('Notification Data:', remoteMessage);
+      const contentLink = remoteMessage?.data?.contentLink;
+      console.log('Content Link:', contentLink);
+
+      if (contentLink) {
+        const fullUrl = `https://firstconnectuser.cognigix.com${contentLink}`;
+        console.log('Opening URL:', fullUrl);
+
+        openedFromNotification.current = true;
+        // Navigate immediately when app is in background/foreground
+        setTimeout(() => {
+          webViewRef.current?.injectJavaScript(`
+            window.location.href = "${fullUrl}";
+            true;
+          `);
+        }, 500);
+      } else {
+        console.log('contentLink not found');
+      }
+    };
+
+    // Handle notification when app is in background and opened
+    const unsubscribe = messaging().onNotificationOpenedApp(remoteMessage => {
+      console.log('App opened from background notification');
+      handleNotification(remoteMessage);
     });
 
-    messaging().getInitialNotification().then(remoteMessage => {
-      const url = remoteMessage?.data?.url;
-      if (url) webViewRef.current?.injectJavaScript(`window.location.href = "${url}";`);
-    });
+    return unsubscribe;
   }, []);
 
- 
+useEffect(() => {
+  const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
+
+    if (type === EventType.PRESS) {
+
+      console.log('Notification clicked in foreground');
+
+      const contentLink = detail.notification?.data?.contentLink;
+
+      console.log('Foreground contentLink:', contentLink);
+
+      if (contentLink) {
+
+        const fullUrl = `https://firstconnectuser.cognigix.com${contentLink}`;
+
+        openedFromNotification.current = true;
+
+        setTimeout(() => {
+          webViewRef.current?.injectJavaScript(`
+            window.location.href = "${fullUrl}";
+            true;
+          `);
+        }, 500);
+
+      }
+    }
+
+  });
+
+  return unsubscribe;
+
+}, []);
+
   const handleBackPress = useCallback(() => {
-    if (canGoBack) {
-      webViewRef.current.goBack();
+    // If page was opened from notification,
+    // go to Home instead of exiting.
+    if (openedFromNotification.current) {
+      openedFromNotification.current = false;
+
+      webViewRef.current?.injectJavaScript(`
+      window.location.href = "${HOME_URL}";
+      true;
+    `);
+
       return true;
     }
+
+    if (canGoBack) {
+      webViewRef.current?.goBack();
+      return true;
+    }
+
     if (backPressCount === 0) {
       setBackPressCount(1);
+
       ToastAndroid.show('Press back again to exit', ToastAndroid.SHORT);
+
       setTimeout(() => setBackPressCount(0), 2000);
+
       return true;
     }
+
     BackHandler.exitApp();
     return true;
   }, [canGoBack, backPressCount]);
 
   useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    const sub = BackHandler.addEventListener(
+      'hardwareBackPress',
+      handleBackPress,
+    );
     return () => sub.remove();
   }, [handleBackPress]);
-
 
   const onLoadProgress = ({ nativeEvent }) => {
     const progressValue = nativeEvent.progress;
@@ -158,14 +275,13 @@ const Home = () => {
   `;
 
   const handleNavigationChange = navState => {
-    console.log("Web View Url",navState.url)
-    
+    console.log('Web View Url:', navState.url);
+    console.log('Can Go Back:', navState.canGoBack);
+
     setCanGoBack(navState.canGoBack);
 
-     if (navState.url.includes('/pre-login') && !hasRefreshed.current) {
+    if (navState.url.includes('/pre-login') && !hasRefreshed.current) {
       hasRefreshed.current = true;
-
-      console.log(' One-time refresh triggered');
 
       setUserId(null);
       setIsTokenSent(false);
@@ -177,22 +293,26 @@ const Home = () => {
       }, 3000);
     }
 
-
     if (navState.url.includes('/user/home')) {
+      // User has reached home, so normal back behavior can resume.
+      openedFromNotification.current = false;
+
       setTimeout(() => {
         webViewRef.current?.injectJavaScript(`
-          (function() {
-            try {
-              var appState = localStorage.getItem('app-state');
-              window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'APP_STATE', value: appState }));
-            } catch (e) {}
-          })();
-          true;
-        `);
+        (function () {
+          try {
+            var appState = localStorage.getItem('app-state');
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'APP_STATE',
+              value: appState
+            }));
+          } catch (e) {}
+        })();
+        true;
+      `);
       }, 1000);
     }
   };
-
   return (
     <SafeAreaView style={styles.container}>
       {isLoading && (
@@ -200,15 +320,19 @@ const Home = () => {
           style={[
             styles.progressBar,
             {
-              width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+              width: progress.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['0%', '100%'],
+              }),
             },
           ]}
         />
       )}
 
       <WebView
+        // Force re-render when URL changes
         ref={webViewRef}
-        source={{ uri: 'https://firstconnectuser.cognigixdemo.com' }}
+        source={{ uri: initialUrl }}
         style={{ flex: 1 }}
         injectedJavaScriptBeforeContentLoaded={disableLongPressJS}
         javaScriptEnabled
