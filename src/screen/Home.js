@@ -8,13 +8,11 @@ import {
   Easing,
   Platform,
   PermissionsAndroid,
+  AppState,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import messaging from '@react-native-firebase/messaging';
-import notifee, { 
-  AndroidImportance,
-  EventType
-} from '@notifee/react-native';
+import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const Home = () => {
@@ -35,6 +33,9 @@ const Home = () => {
 
   const HOME_URL = 'https://firstconnectuser.cognigix.com/user/home';
 
+  const appState = useRef(AppState.currentState);
+  const currentUrlRef = useRef('');
+
   useEffect(() => {
     async function initNotifications() {
       if (Platform.OS === 'android' && Platform.Version >= 33) {
@@ -51,6 +52,47 @@ const Home = () => {
     }
 
     initNotifications();
+  }, []);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      'change',
+      async nextState => {
+        const wasBackground =
+          appState.current === 'background' || appState.current === 'inactive';
+
+        if (wasBackground && nextState === 'active') {
+          console.log('App returned to foreground ');
+
+          const currentUrl = currentUrlRef.current;
+
+          console.log('Current WebView URL:', currentUrl);
+
+          // Do NOT clear cache on profile page
+          if (currentUrl.includes('/user/profile')) {
+            console.log('Profile page detected - keeping WebView cache');
+
+            webViewRef.current?.reload();
+            return;
+          }
+
+          try {
+            // Clear WebView cache
+            await webViewRef.current?.clearCache(true);
+
+            // Reload the current page
+            webViewRef.current?.reload();
+          } catch (error) {
+            console.log('WebView refresh error:', error);
+            webViewRef.current?.reload();
+          }
+        }
+
+        appState.current = nextState;
+      },
+    );
+
+    return () => subscription.remove();
   }, []);
 
   const getFCMToken = async () => {
@@ -181,38 +223,32 @@ const Home = () => {
     return unsubscribe;
   }, []);
 
-useEffect(() => {
-  const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
+  useEffect(() => {
+    const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
+      if (type === EventType.PRESS) {
+        console.log('Notification clicked in foreground');
 
-    if (type === EventType.PRESS) {
+        const contentLink = detail.notification?.data?.contentLink;
 
-      console.log('Notification clicked in foreground');
+        console.log('Foreground contentLink:', contentLink);
 
-      const contentLink = detail.notification?.data?.contentLink;
+        if (contentLink) {
+          const fullUrl = `https://firstconnectuser.cognigix.com${contentLink}`;
 
-      console.log('Foreground contentLink:', contentLink);
+          openedFromNotification.current = true;
 
-      if (contentLink) {
-
-        const fullUrl = `https://firstconnectuser.cognigix.com${contentLink}`;
-
-        openedFromNotification.current = true;
-
-        setTimeout(() => {
-          webViewRef.current?.injectJavaScript(`
+          setTimeout(() => {
+            webViewRef.current?.injectJavaScript(`
             window.location.href = "${fullUrl}";
             true;
           `);
-        }, 500);
-
+          }, 500);
+        }
       }
-    }
+    });
 
-  });
-
-  return unsubscribe;
-
-}, []);
+    return unsubscribe;
+  }, []);
 
   const handleBackPress = useCallback(() => {
     // If page was opened from notification,
@@ -267,17 +303,34 @@ useEffect(() => {
   };
 
   const disableLongPressJS = `
-    document.addEventListener('contextmenu', e => e.preventDefault());
+  (function() {
+
+    document.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+    });
+
     const style = document.createElement('style');
-    style.innerHTML = '* { -webkit-user-select: none !important; -webkit-touch-callout: none !important; user-select: none !important; }';
+
+    style.innerHTML = \`
+      * {
+        -webkit-user-select: none !important;
+        -webkit-touch-callout: none !important;
+        user-select: none !important;
+      }
+    \`;
+
     document.head.appendChild(style);
-    true;
-  `;
+
+  })();
+
+  true;
+`;
 
   const handleNavigationChange = navState => {
     console.log('Web View Url:', navState.url);
     console.log('Can Go Back:', navState.canGoBack);
 
+    currentUrlRef.current = navState.url;
     setCanGoBack(navState.canGoBack);
 
     if (navState.url.includes('/pre-login') && !hasRefreshed.current) {
@@ -334,8 +387,11 @@ useEffect(() => {
         ref={webViewRef}
         source={{ uri: initialUrl }}
         style={{ flex: 1 }}
+        cacheEnabled={false}
+        cacheMode="LOAD_NO_CACHE"
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
         injectedJavaScriptBeforeContentLoaded={disableLongPressJS}
-        javaScriptEnabled
         onLoadProgress={onLoadProgress}
         onNavigationStateChange={handleNavigationChange}
         onMessage={event => {

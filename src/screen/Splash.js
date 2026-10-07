@@ -21,54 +21,55 @@ const Splash = ({ navigation }) => {
   }, [])
 
 
-  const checkForUpdate = async () => {
+const checkForUpdate = async () => {
+  try {
+    const currentVersion = VersionCheck.getCurrentVersion();
 
-    try {
+    const latestVersion = await VersionCheck.getLatestVersion({
+      provider: 'playStore',
+    });
 
-      const currentVersion = VersionCheck.getCurrentVersion()
+    console.log('Current Version:', currentVersion);
+    console.log('Play Store Version:', latestVersion);
 
-      const latestVersion = await VersionCheck.getLatestVersion({
-        provider: 'playStore'
-      })
+    const updateNeeded = await VersionCheck.needUpdate({
+      currentVersion,
+      latestVersion,
+    });
 
-
-      console.log("Current Version:", currentVersion)
-      console.log("Play Store Version:", latestVersion)
-
-
-      if (latestVersion > currentVersion) {
-
-        Alert.alert(
-          "Update Available",
-          "A new version of FirstConnect is available. Please update now.",
-          [
-            {
-              text: "Update Now",
-              onPress: () => openPlayStore()
-            }
-          ],
+    if (updateNeeded?.isNeeded) {
+      Alert.alert(
+        'Update Available',
+        'A new version of FirstConnect is available. Please update now.',
+        [
           {
-            cancelable: false
-          }
-        )
-
-      } else {
-
-        goToHome()
-
-      }
-
-
-    } catch (error) {
-
-      console.log("Update check error:", error)
-
-      // if check fails continue app
-      goToHome()
-
+            text: 'Later',
+            style: 'cancel',
+            onPress: () => {
+              goToHome();
+            },
+          },
+          {
+            text: 'Update Now',
+            onPress: () => {
+              openPlayStore();
+            },
+          },
+        ],
+        {
+          cancelable: false,
+        }
+      );
+    } else {
+      goToHome();
     }
+  } catch (error) {
+    console.log('Update check error:', error);
 
+    // If update check fails, continue to app
+    goToHome();
   }
+};
 
 
   const openPlayStore = () => {
